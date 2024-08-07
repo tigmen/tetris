@@ -1,106 +1,114 @@
 #include <iostream>
-#include <boost\asio.hpp>
-#include <thread>
 #include <conio.h>
 #include <string.h>
+#include <windows.h>
+#include <thread>
+#include <mutex>
 
+int speed = 30;
+bool isLife = true;
+std::mutex locker;
+int map[8][16];
 
 class Screen{
     public:
-    Screen(boost::asio::io_context & io): _strand(boost::asio::make_strand(io)),_UpdateTimer(io,boost::asio::chrono::seconds(1)),
-    _SpawnTimer(io,boost::asio::chrono::seconds(1))
+    Screen()
     {
         for(int i = 0;i < 16;i++)
             for(int j = 0;j < 32;j++)
                 map[i][j] = 0;
-        _UpdateTimer.async_wait(boost::asio::bind_executor(_strand,std::bind(&Screen::update,this)));
-        _SpawnTimer.async_wait(boost::asio::bind_executor(_strand,std::bind(&Screen::spawn,this)));
     }
     void update()
     {
         // Logic update
-        if(kbhit()){
-            int key = getch();
-            if(key == 77) {
-                for(int i = 0;i < 16; i++){
-             for(int j = 31;j > 0;j--)
-                if(map[i][j-1]==1 && map[i][j]==0) {
-                    map[i][j-1] = 0;
-                    map[i][j] = 1;
-                }
-            }
-            c++;
-        }
-        if(key == 75){
-                for(int i = 0;i < 16; i++){
-                    for(int j = 0;j < 31;j++)
-                    if(map[i][j+1]==1 && map[i][j]==0) {
-                        map[i][j+1] = 0;
-                        map[i][j] = 1;
-                    }
-                }
-            c--;
-        }
-            std::cout << key << " " << c << std::endl;
-        }
-        for(int i = 15;i > 0; i--){
-             for(int j = 0;j < 32;j++){
-                if(map[i-1][j]==1 && map[i][j]==0) {
+        locker.lock();
+        for(int i = 7;i >= 0; i--){
+             for(int j = 0;j < 16;j++){
+                if(map[i-1][j]==1 && map[i][j]==0 && i > 0) {
+                    std::cout << i << " " << j << std::endl;
+                    map[i][j] = speed;
                     map[i-1][j] = 0;
-                    map[i][j] = 1;
                 }
-                else if(map[i][j]==2){
-                    map[i-1][j] = 2;
+                if(map[i][j] == -1 && map[i-1][j] == 1){
+                    map[i-1][j] = -1;
+                    this->spawn();
                 }
+                else if(map[i][j] == 1 && i == 7){
+                    map[i][j] = -1;
+                    this->spawn();
+                }
+                else if(map[i][j]>1){
+                    map[i][j]--;
+                } 
             }
         }
 
         // Screen update
-        //system("cls");
+        system("cls");
         std::string _t = "";
-        for(int i = 0;i < 16;i++){
-            for(int j = 0;j < 32;j++){
-                if(map[i][j]>0) _t += "#";
-                else _t += "*";
+        for(int i = 0;i < 8;i++){
+            for(int j = 0;j < 16;j++){
+                if(map[i][j]!=0) _t += "#";
+                else _t += ".";
             }
             _t += "\n";
         }
-        std::cout << _t << c << std::endl;
+        locker.unlock();
+        std::cout << _t << std::endl;
+        Sleep(10);
         
-        _UpdateTimer.expires_at(_UpdateTimer.expiry() + boost::asio::chrono::seconds(1));
-        _UpdateTimer.async_wait(std::bind(&Screen::update,this));
     }
 
     void spawn() {
-        map[0][15] = 1;
-        map[0][16] = 1;
-        map[0][17] = 1;
-        map[0][18] = 1;
-
-        //_SpawnTimer.expires_at(_SpawnTimer.expiry() + boost::asio::chrono::seconds(2));
-        //_SpawnTimer.async_wait(std::bind(&Screen::spawn,this));
-        
+        map[0][2] = speed; 
+        map[0][3] = speed;
+        map[0][4] = speed;
+        map[0][5] = speed;
+    }
+};
+class Controller{
+    public:
+    void control() {
+        if(kbhit()){
+            int key = getch();
+            locker.lock();
+            if(key == 75) {
+                
+                for(int i = 0;i < 8; i++){
+                    for(int j = 0;j < 15;j++)
+                        if(map[i][j+1]>0 && map[i][j]==0) {
+                            map[i][j] = map[i][j+1];
+                            map[i][j+1] = 0;
+                        }
+                }
+            }
+            if(key == 77){
+                for(int i = 0;i < 8; i++){
+                    for(int j = 15;j > 0;j--)
+                        if(map[i][j-1]>0 && map[i][j]==0) {
+                            map[i][j] = map[i][j-1];
+                            map[i][j-1] = 0;
+                        }
+                }   
+                
+            }
+            locker.unlock();
+        }
     }
 
-    boost::asio::strand<boost::asio::io_context::executor_type> getStrand(){
-        return _strand;
-    }
+    private: 
 
-    private:
-        int map[16][32];
-        boost::asio::strand<boost::asio::io_context::executor_type> _strand;
-        boost::asio::steady_timer _UpdateTimer;
-        boost::asio::steady_timer _SpawnTimer;
-
-        int c = 0;
 };
 
 int main() {
-    boost::asio::io_context io;
-    Screen sc(io);
-
-    std::thread th([&]{io.run();});
-    th.join();
-
+    system("color 05");
+    Screen sc = Screen();
+    Controller ct;
+    sc.spawn();
+    while(isLife){
+    std::thread scr([&]{sc.update();});
+    scr.join();
+    ct.control();
+    }
     return 0;
 }
