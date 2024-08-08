@@ -102,7 +102,7 @@ class Controller{
             if(key == 75) {
                 bool _isBlocked = false;
                 for (int i = 0; i < 4; i++)
-                    if(map[BlockPos[1][i]][BlockPos[0][i] - 1] < 0) _isBlocked = true;
+                    if(map[BlockPos[1][i]][BlockPos[0][i] - 1] < 0 || BlockPos[0][i] == 0) _isBlocked = true;
                 if(!_isBlocked){
                     int _localSpeed = map[BlockPos[1][0]][BlockPos[0][0]];
                     for (int i = 0; i < 4; i++){
@@ -113,11 +113,11 @@ class Controller{
                 }
                 
             }
-            
+
             if(key == 77){
                 bool _isBlocked = false;
                 for (int i = 0; i < 4; i++)
-                    if(map[BlockPos[1][i]][BlockPos[0][i] + 1] < 0) _isBlocked = true;
+                    if(map[BlockPos[1][i]][BlockPos[0][i] + 1] < 0 || BlockPos[0][i] == sizeof(map[0])/4) _isBlocked = true;
                 if(!_isBlocked){
                     int _localSpeed = map[BlockPos[1][0]][BlockPos[0][0]];
                     for (int i = 0; i < 4; i++){
