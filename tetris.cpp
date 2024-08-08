@@ -19,6 +19,7 @@ int shape[][4][2] ={{{0,0},{1,0},{2,0},{-1,0}},
                     {{0,0},{-1,0},{0,1},{1,1}},
                     {{0,0},{1,0},{0,1},{-1,1}},
                     {{0,0},{1,0},{1,1},{0,1}}};
+int BlockPos[2][4];  // {{xcords},{ycords}}
 
 class Screen{
     public:
@@ -32,33 +33,33 @@ class Screen{
     {
         // Logic update
         locker.lock();
-        
-        std::vector<std::vector<int>> _temp;
         bool _isGrounded = false;
-         for(int i = sizeof(map)/sizeof(map[0]) - 1; i >= 0; i--)
-             for(int j = 0;j < sizeof(map[0])/4;j++){
-                if(map[i][j] > 0){
-                    std::vector<int> _{i,j};
-                    _temp.push_back(_);
-                    if((map[i+1][j] < 0 || i == sizeof(map)/sizeof(map[0]) - 1) && map[i][j] == 1) 
+        for (int i = 0; i < 4; i++){
+            //std::cout << BlockPos[0][i] << " : " << BlockPos[1][i] << " -> " << map[BlockPos[1][i]][BlockPos[0][i]] << std::endl;
+            if((map[BlockPos[1][i]+1][BlockPos[0][i]] < 0 || BlockPos[1][i] == sizeof(map)/sizeof(map[0]) - 1) && map[BlockPos[1][i]][BlockPos[0][i]] == 1) 
                         _isGrounded = true;
-                } 
-            }
-        
-        for (int i = 0; i < _temp.size(); i++){
+        }
+        bool _isFalling = false;
+        for (int i = 0; i < 4; i++){
             if(_isGrounded){
-                map[_temp[i][0]][_temp[i][1]] = -1;
+                map[BlockPos[1][i]][BlockPos[0][i]] = -1;
             }
-            else if(map[_temp[i][0]][_temp[i][1]] > 1) {
-                    map[_temp[i][0]][_temp[i][1]]--;
+            else if(map[BlockPos[1][i]][BlockPos[0][i]] > 1) {
+                    map[BlockPos[1][i]][BlockPos[0][i]]--;
             }
             else{
-                map[_temp[i][0]][_temp[i][1]] = 0;
-                map[_temp[i][0]+1][_temp[i][1]] = speed;
+                map[BlockPos[1][i]][BlockPos[0][i]] = 0;
+                BlockPos[1][i]++;
+                _isFalling = true;
             }
         }
+        if (_isFalling)
+        {
+            for (int i = 0; i < 4; i++)
+            map[BlockPos[1][i]][BlockPos[0][i]] = speed;
+        }
+        
         if(_isGrounded) this->spawn(rand() % 7);
-
         // Screen update
         system("cls");
 
@@ -83,48 +84,89 @@ class Screen{
     void spawn(int param) {
         for(int i = 0;i < 4;i++){
             map[shape[param][i][1]][8+shape[param][i][0]] = speed;
+            BlockPos[0][i] = 8+shape[param][i][0];
+            BlockPos[1][i] = shape[param][i][1];
         }
     }
     
 };
 class Controller{
     public:
+    Controller(Screen sc){
+        _sc = sc;
+    }
     void control() {
         if(kbhit()){
             int key = getch();
             locker.lock();
             if(key == 75) {
+                bool _isBlocked = false;
+                for (int i = 0; i < 4; i++)
+                    if(map[BlockPos[1][i]][BlockPos[0][i] - 1] < 0) _isBlocked = true;
+                if(!_isBlocked){
+                    int _localSpeed = map[BlockPos[1][0]][BlockPos[0][0]];
+                    for (int i = 0; i < 4; i++){
+                        map[BlockPos[1][i]][BlockPos[0][i]] = 0;
+                        BlockPos[0][i]--;
+                    }
+                    for (int i = 0; i < 4; i++) map[BlockPos[1][i]][BlockPos[0][i]] = _localSpeed;
+                }
                 
-                for(int i = 0;i < sizeof(map)/sizeof(map[0]); i++){
-                    for(int j = 0;j < sizeof(map[0])/4 - 1;j++)
-                        if(map[i][j+1]>0 && map[i][j]==0) {
-                            map[i][j] = map[i][j+1];
-                            map[i][j+1] = 0;
-                        }
+            }
+            
+            if(key == 77){
+                bool _isBlocked = false;
+                for (int i = 0; i < 4; i++)
+                    if(map[BlockPos[1][i]][BlockPos[0][i] + 1] < 0) _isBlocked = true;
+                if(!_isBlocked){
+                    int _localSpeed = map[BlockPos[1][0]][BlockPos[0][0]];
+                    for (int i = 0; i < 4; i++){
+                        map[BlockPos[1][i]][BlockPos[0][i]] = 0;
+                        BlockPos[0][i]++;
+                    }
+                    for (int i = 0; i < 4; i++) map[BlockPos[1][i]][BlockPos[0][i]] = _localSpeed;
                 }
             }
-            if(key == 77){
-                for(int i = 0;i < sizeof(map)/sizeof(map[0]); i++){
-                    for(int j = sizeof(map[0])/4 - 1;j > 0;j--)
-                        if(map[i][j-1]>0 && map[i][j]==0) {
-                            map[i][j] = map[i][j-1];
-                            map[i][j-1] = 0;
-                        }
-                }   
-                
+
+            if(key == 80){
+                bool _isGrounded = false;
+                for (int i = 0; i < 4; i++){
+                    if(map[BlockPos[1][i]+1][BlockPos[0][i]] < 0 || BlockPos[1][i] == sizeof(map)/sizeof(map[0]) - 1) _isGrounded = true;
+                }
+                if(_isGrounded)
+                {
+                    for (int i = 0; i < 4; i++) 
+                        map[BlockPos[1][i]][BlockPos[0][i]] = -1;
+                    _sc.spawn(rand() % 7);
+                }
+                else{
+                    for (int i = 0; i < 4; i++){
+                        map[BlockPos[1][i]][BlockPos[0][i]] = 0;
+                        BlockPos[1][i]++;
+                    }
+                    for (int i = 0; i < 4; i++)
+                    map[BlockPos[1][i]][BlockPos[0][i]] = speed;
+                }
             }
+            
+            if(key == 72){} //rotate
+            if(key == 32){} //save
+            if(key == 27) isLife = false;
             locker.unlock();
         }
     }
+    private:
+    Screen _sc;
 };
 
 int main() {
     system("color 05");
-
+    
     Screen sc = Screen();
-    Controller ct;
+    Controller ct = Controller(sc);
 
     sc.spawn(rand() % 7);
+
 
     while(isLife){
     std::thread scr([&]{
@@ -133,6 +175,6 @@ int main() {
     scr.join();
     ct.control();
     }
-
+    system("color 07");
     return 0;
 }
