@@ -1,12 +1,4 @@
-#include <iostream>
-#include <conio.h>
-#include <string>
-#include <windows.h>
-#include <thread>
-#include <mutex>
-#include <vector>
-#include <random>
-#include <ctime>
+#include <dependencies.h>
 
 int speed = 10; //*24 ms
 bool isLife = true;
